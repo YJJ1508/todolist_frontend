@@ -12,47 +12,65 @@ class App extends React.Component{
     super(props);
     //this.id = 2;
     this.state = {
-      //input: "",        Hook 사용으로 인해 제거
-      todos: [
-        //{id: 0, content:"리액트를 공부하자0", isComplete:false},
-        //{id: 1, content:"리액트를 공부하자1", isComplete:true}
-      ]
+      //input: "",       Form.js에서 hook 사용으로 인해 제거
+      todos: []
     }
     //this.handleChange = this.handleChange.bind(this);
     this.handleCreate = this.handleCreate.bind(this);
     //this.handleKeyPress = this.handleKeyPress.bind(this);
     this.handleToggle = this.handleToggle.bind(this);
     this.handleRemove = this.handleRemove.bind(this);
+
+    // bind(this)에서 this는 app의 인스턴스를 가리킴.
+
   }
 
-  // Form 컴포넌트 메서드               //Hook 사용으로 제거
-  // handleChange(event){  //입력 값이 변경될 때 호출
-  //   this.setState({ //현재 입력값으로 업데이트
-  //     input: event.target.value
-  //   });
-  // }
+  componentDidMount(){
+    this.handleInitInfo()
+  }
 
+  handleInitInfo(){
+    fetch("/todos")
+    .then(res => res.json())
+    .then(todos => this.setState({todos: todos}))
+    .catch(err => console.log(err))
+  }
+
+
+  // 등록
   //Hook 사용으로 state에서 input제외하고 todos만 파라미터로 받는다.
-  handleCreate(inputValue){ //TODO 생성 메서드
+  handleCreate(input){ //TODO 생성 메서드
     const {todos} = this.state;     
-    if(inputValue===""){ //입력값 없으면 경고
-      alert("내용을 입력해주세요");
+    if(input===""){ 
+      alert("내용을 입력해주세요"); //입력값 없으면
       return;
     }
+    //화면에서 먼저 변경사항을 보여주는 방법으로 이용
     this.setState({ //업데이트 
       //input:"",
       todos: todos.concat({
         id: 0,  //임의 (key에러 방지)
-        content: inputValue,
+        content: input,
         isComplete: false
       })
-    })
+    });
+
+    const data = {
+      body: JSON.stringify({"content" : input}),
+      headers: {'Content-Type': 'application/json'},
+      method: 'post'
+    }
+    fetch("/todos", data)
+    .then(res => {
+      if(!res.ok){
+        throw new Error(res.status);
+      }else{
+        return this.handleInitInfo();
+      }
+    }).catch(err => console.log(err));
   }
-  // handleKeyPress(event){  //ENTER키 눌렀을 때 호출되는 메서드        //Hook 
-  //   if(event.key ==="Enter"){
-  //     this.handleCreate();
-  //   }
-  // }
+
+
 
   // 수정
   //TodoItem컴포넌트 메서드-완료처리
@@ -77,7 +95,28 @@ class App extends React.Component{
     this.setState({
       todos:nextTodos
     });
+
+    const data = {  
+      headers: {'Content-Type': 'application/json'},
+      method: 'put'
+    }
+
+    console.log(selected);  
+    console.log(data);        //@!@ isComplete 반전은 서버에서 따로 처리한다.
+                              //id값만 넘겨받아 db에서 기존값을 확인함.(클라이언트 조작 때문 신뢰x)
+    fetch("/todos/" + id, data)  //@@!id값만 넘김 
+    .then(res => {
+      console.log(res); //서버 응답 확인
+      if(!res.ok){
+        throw new Error(res.status);
+      } else{
+        return this.handleInitInfo();
+      }
+    }).catch(err => console.log(err));
   }
+
+  
+  //삭제
   handleRemove(id){
     const {todos} = this.state; //todo 목록 불러오기          //수정
     
@@ -89,6 +128,19 @@ class App extends React.Component{
     this.setState({
       todos: todos.filter(todo => todo.id !== id) //filter(포함된 내용을 새 배열로 생성)
     })
+
+    const data = {
+      headers: {'Content-Type':'application/json'},
+      method: 'delete'
+    }
+    fetch('/todos/'+id, data)
+    .then(res => {
+      if(!res.ok){
+        throw new Error(res.status);
+      } else{
+        return this.handleInitInfo();
+      }
+    }).catch(err => console.log(err));
     
   }
 
@@ -96,19 +148,18 @@ class App extends React.Component{
 
   render(){
     return (  //홈 화면 뿌려짐.
-    < TodoListTemplate form = {(
-      <Form
-        //value={this.state.input}
-        //onChange={this.handleChange}
-        onCreate={this.handleCreate}/>
-        //onKeyPress={this.handleKeyPress}
-      )} >
-      <TodoItemList 
-        todos={this.state.todos}
-        onToggle={this.handleToggle}
-        onRemove={this.handleRemove}/>
-    </TodoListTemplate>
-  );
+      < TodoListTemplate form ={(
+        <Form
+          // Form.js에서 hook 사용으로 인해 제거 
+          onCreate={this.handleCreate}/>  //onCreate props에 handleCreate할당
+                                  //폼.js에서 onCreate호출 시 handleCreate호출!!  
+      )}>
+        <TodoItemList 
+          todos={this.state.todos}
+          onToggle={this.handleToggle}
+          onRemove={this.handleRemove}/>
+      </TodoListTemplate>
+    );
   }
 }
 
